@@ -4,7 +4,7 @@ class Algforms:
         self.latlist.append(L)
         self.autlist=list()
         self.autlist.append(latauts(L, Q))
-        self.quad_form=Q
+        self.Q=Q
         self.hecke_ops=dict()
         n=Q.dimensions()[1]
         for i in range(1, floor(n/2)+1):
@@ -18,12 +18,11 @@ class Algforms:
             op=Matrix(ZZ, len(self.latlist), len(self.latlist))
             for i in range(0, len(self.latlist)):
                 curlat=self.latlist[i]
-                vecs=isotropic_lines(curlat.transpose()*Q*curlat, p)
-                for v in vecs:
-                    target=p_spinor_one_neighbor(curlat, Q, p, v)
+                targets=p_spinor_neighbors(curlat, self.Q, p, k)
+                for target in targets:
                     found = False
                     for j in range(0, len(self.latlist)):
-                        if theta_equivalent(self.latlist[j], target, Q, self.autlist[j]):
+                        if theta_equivalent(self.latlist[j], target, self.Q, self.autlist[j]):
                             op[i,j]+=1
                             found = True
                             break
@@ -38,5 +37,5 @@ class Algforms:
                         print "Need to expand list. Recompute all operators"
                         valid=False
             if valid:
-                self.hecke_ops[1][p]=op
+                self.hecke_ops[k][p]=op
             return op
