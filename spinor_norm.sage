@@ -144,3 +144,15 @@ def spinor_op(L,Q, p):
 def p_spinor_one_neighbor(L, Q, p, v):
     L1=p_one_neighbor(L, Q, v, p)
     return spinor_op(L1, Q, p)
+
+def p_spinor_neighbors(L, Q, p, k):
+    if k!=1:
+        raise RuntimeError, "Not implemented"
+    else:
+        ret=list()
+        vecs=isotropic_lines(L.transpose()*Q*L, p)
+        for v in vecs:
+            L1=p_one_neighbor(L, Q, v, p)
+            L2=spinor_op(L1, Q, p)
+            ret.append(L2)
+        return ret
