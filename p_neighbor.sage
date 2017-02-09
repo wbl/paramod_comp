@@ -89,6 +89,76 @@ def colaug(v1, v2):
         M[i, 1]=v2[i]
     return M
 
+#todo: pythonize
+def colmat(v):
+    n=v.length()
+    M=Matrix(QQ, n, 1)
+    for i in range(0, n):
+        M[i,0]=v[i]
+    return M
+
+def hyperbolic_complement(L, Q, X, p):
+    #I feel sage really wants to use rows for spaces
+    nQ=L.transpose()*Q*L
+    k=X.dimensions()[1]
+    n=X.dimensions()[0]
+    basis=Matrix(QQ, n, n, 0)
+    for i in range(0, n):
+        basis[i,i]=1
+    Z=Matrix(QQ, n, 0)
+    for i in range(0, k):
+        #Find a z[i] complementing x[i]
+        x=X.column(i)
+        for v in basis.columns():
+            if v.dot_product(nQ*X.column(i)) % p !=0:
+                z=v
+                break
+        #adjust so that it has the right norms
+        z=(1/z.dot_product(nQ*x)%p)*z
+        z=z-(z.dot_product(nQ*z) %p)*x
+        Z=Z.augment(colmat(z))
+        #orthogonalize basis
+        for j in range(0, n):
+            b=basis.column(j)
+            b=b-b.dot_product(nQ*z)*x
+            b=b-b.dot_product(nQ*x)*z
+            basis[:, j]=b
+    return Z
+
+def hensel_lift(L, Q, X, Z, p):
+    #First compute X_2
+    #Then Z_2
+    #Then Z_3
+    #Return (X_2, Z_3)
+    #These are lists of vectors(make matrix at end)
+    k=X.dimensions()[1]
+    n=X.dimensions()[0] #do I need it
+    nQ=L.transpose()*Q*L
+    X2=list()
+    for i in range(0, k):
+        xi=X.columns(i)
+        v=xi-xi.dot_product(nQ*xi)*Z.columns(i)
+        for j in range(0, i):
+            v=v-xi.dot_product(nQ*X.columns(j))*Z.columns(j)
+        X2.append(deepcopy(v))
+    Z2=list()
+    for i in range(0, k):
+        zi=Z.columns(i)
+        v=zi-zi.dot_product(nQ*zi)*X.columns(i)
+        for j in range(0, i):
+            v=v-zi.dot_product(nQ*Z.columns(j))*X.columns(j)
+        Z2.append(deepcopy(v))
+    Z3=list()
+    for i in range(0, k):
+        v=Z2[i]
+        for j in range(0, k):
+            v+=(kronecker_delta(i,j)-X2[j].dot_product(nQ*Z2[i]))*Z2[j]
+        Z3.append(deepcopy(v))
+    return (Matrix(X2).transpose(), Matrix(Z3).transpose())
+
+def lifts_with_fixed_complement(L, Q, Xprime, Zprime, p):
+    pass
+
 def p_one_neighbor(L, Q, v, p): #Make work for 2!
     n=L.dimensions()[0]
     v=L*v #Best done in column space
