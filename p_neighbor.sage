@@ -248,4 +248,10 @@ def p_one_neighbor(L, Q, v, p): #Make work for 2!
     return basis
 
 def p_neighbors(L, Q, p, k):
-    pass
+    if k!=1:
+        raise RuntimeError, "NotImpelementedError"
+    ret=list()
+    vecs=isotropic_lines(L.transpose()*Q*L, p)
+    for v in vecs:
+        ret.append(p_one_neighbor(L, Q, v, p))
+    return ret
