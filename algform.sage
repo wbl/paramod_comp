@@ -1,4 +1,6 @@
 import pickle
+import pdb
+
 class Algforms:
     def __init__(self, L, Q):
         self.latlist=list()
@@ -11,7 +13,62 @@ class Algforms:
         for i in range(1, floor(n/2)+1):
             self.hecke_ops[i]=dict()
 
-    def hecke_operator(self,p, k): #include more sanity checks
+    def reconstruct(self, op, rows):
+        #The reconstruction step
+        #TODO: use other things?
+        if not (1 in self.hecke_ops):
+                return Matrix(ZZ, 0, 0), False
+        if not (3 in self.hecke_ops[1]):
+                return Matrix(ZZ, 0, 0), False
+        B=self.hecke_ops[1][3]
+        n=B.dimensions()[0]
+        #We solve for the symmetric matrix that commutes with B
+        #and has the first r rows given by op[:, rows]
+        #The input vector is size n^2. There are rn relations on rows,
+        # n^2 on commutation, and n(n-1)/2 on symmetry, for
+        #rn+n^2+n(n-1)/2 total relations.
+
+        #We flatten matrices as m[i,j]=n*i+j
+        d=rows*n+n^2+n*(n-1)/2
+        problem=Matrix(ZZ, rows*n+n^2+n*(n-1)/2, n^2, 0)
+        invec=vector(ZZ, ZZ(d))
+        counter=0
+        for i in range(0, rows):
+            for j in range(0, n):
+                problem[counter,n*i+j]=1
+                invec[counter]=op[i,j]
+                counter +=1
+        assert counter==rows*n
+        #Now the symmetry relations
+        for i in range(0, n):
+            for j in range(i+1, n):
+                problem[counter, n*i+j]=1
+                problem[counter, n*j+i]=-1
+                invec[counter]=0
+                counter +=1
+        #Now the commutation relations
+        for i in range(0, n):
+            for j in range(0,n):
+                mat=Matrix(ZZ, n, n, 0)
+                mat[i, j]=1
+                res=B*mat-mat*B
+                for k in range(0, n):
+                    for l in range(0,n):
+                        problem[counter+n*k+l, n*i+j]=res[k,l]
+        #As values should be zero we are ok
+        try:
+            outvec=problem.solve_right(invec)
+        except:
+            return Matrix(ZZ, 0, 0), False
+        outop=Matrix(ZZ, n, n, 0)
+        for i in range(0, n):
+            for j in range(0,n):
+                outop[i,j]=outvec[n*i+j]
+        return outop, True
+    
+    def hecke_operator(self,p, k, fast=True): #include more sanity checks
+        #TODO: better way to report expansion?
+        #Maybe compute hecke(3, 1) at init time?
         if k in self.hecke_ops:
             if p in self.hecke_ops[k]:
                 return self.hecke_ops[k][p]
@@ -37,6 +94,11 @@ class Algforms:
                     op=Matrix(ZZ, len(self.latlist), len(self.latlist))
                     print "Need to expand list. Recompute all operators"
                     valid=False
+            if valid and fast:
+                nOp, status=self.reconstruct(op, i+1)
+                if status:
+                    op=nOp
+                    break
         if valid:
             self.hecke_ops[k][p]=op
         return op
