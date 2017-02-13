@@ -1,4 +1,6 @@
 import pickle
+import pdb
+
 class Algforms:
     def __init__(self, L, Q):
         self.latlist=list()
@@ -15,7 +17,8 @@ class Algforms:
         #The reconstruction step
         #TODO: use other things?
         if not (1 in self.hecke_ops):
-            if not(3 in self.hecke_ops):
+                return Matrix(ZZ, 0, 0), False
+        if not (3 in self.hecke_ops[1]):
                 return Matrix(ZZ, 0, 0), False
         B=self.hecke_ops[1][3]
         n=B.dimensions()[0]
@@ -26,17 +29,19 @@ class Algforms:
         #rn+n^2+n(n-1)/2 total relations.
 
         #We flatten matrices as m[i,j]=n*i+j
+        d=rows*n+n^2+n*(n-1)/2
         problem=Matrix(ZZ, rows*n+n^2+n*(n-1)/2, n^2, 0)
-        invec=vector(ZZ, rows*n+n^2+n*(n-1)/2, 0)
+        invec=vector(ZZ, ZZ(d))
         counter=0
         for i in range(0, rows):
             for j in range(0, n):
                 problem[counter,n*i+j]=1
                 invec[counter]=op[i,j]
                 counter +=1
+        assert counter==rows*n
         #Now the symmetry relations
         for i in range(0, n):
-            for j in range(j+1, n):
+            for j in range(i+1, n):
                 problem[counter, n*i+j]=1
                 problem[counter, n*j+i]=-1
                 invec[counter]=0
@@ -89,8 +94,8 @@ class Algforms:
                     op=Matrix(ZZ, len(self.latlist), len(self.latlist))
                     print "Need to expand list. Recompute all operators"
                     valid=False
-            if fast and valid:
-                nOp, status=self.reconstruct(op, i)
+            if valid and fast:
+                nOp, status=self.reconstruct(op, i+1)
                 if status:
                     op=nOp
                     break
