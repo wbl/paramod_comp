@@ -7,6 +7,7 @@
 #but we have to ensure our lattices use the same ambient quadratic space
 #and so the construction gets more complicated
 from sage.matrix.matrix import is_Matrix
+import pdb
 
 def extend_to_primitive(A_input):
     """
@@ -99,6 +100,7 @@ def colmat(v):
 
 def hyperbolic_complement(L, Q, X, p):
     #I feel sage really wants to use rows for spaces
+    #Modified to return the basis we need 
     nQ=L.transpose()*Q*L
     k=X.dimensions()[1]
     n=X.dimensions()[0]
@@ -123,7 +125,7 @@ def hyperbolic_complement(L, Q, X, p):
             b=b-b.dot_product(nQ*z)*x
             b=b-b.dot_product(nQ*x)*z
             basis[:, j]=b
-    return Z
+    return (Z,basis)
 
 def hensel_lift(L, Q, X, Z, p):
     #First compute X_2
@@ -156,8 +158,57 @@ def hensel_lift(L, Q, X, Z, p):
         Z3.append(deepcopy(v))
     return (Matrix(X2).transpose(), Matrix(Z3).transpose())
 
+def skew_symmetric_matrices(p, k):
+    L=list()
+    coeffs=vector(ZZ, [0 for i in range(0, k*(k-1)/2)])
+    while True:
+        mat=Matrix(ZZ, k, k)
+        for i in range(0, k):
+            for j in range(0, i):
+                idx=i*(i-1)/2+j
+                mat[i,j]=coeffs[idx]%p
+                mat[j, i]=(-mat[i,j])%p
+        L.append(mat)
+        ind=k*(k-1)/2-1
+        add=True
+        while add and ind>0:
+            coeffs[ind]+=1
+            if coeffs[ind]==p:
+                add=True
+                coeffs[ind]=0
+            else:
+                add=False
+            ind-=1
+        if add and ind==0:
+            coeffs[0]+=1
+            if coeffs[0]==p:
+                return L
+
 def lifts_with_fixed_complement(L, Q, Xprime, Zprime, p):
-    pass
+    #There is no code for this: have to read the theorem and
+    #understand it.
+    k=Zprime.dimensions()[1]
+    Mlist=skew_symmetric_matrices(p, k)
+    Xlist=list()
+    for m in Mlist:
+        Xpp=Xprime+Zprime*p*Mlist
+        Xlist.append(Xpp)
+    return Xlist
+
+def hermitize(L, Q, X, Z, U, p):
+    # Remember we need to take X, Z*p^2, U*p and p^3*basis
+    # and then divide by p
+    # Q: where does this get us the 1/p bits?
+    # we also multiply by 2 for some convoluted reason
+    neighbor=Matrix(ZZ, 0, 0)
+    n=L.dimensions()[1]
+    neighbor=neighbor.augment(Matrix(ZZ, 2*X))
+    neighbor=neighbor.augment(Matrix(ZZ, 2*p^2*Z))
+    neighbor=neighbor.augment(Matrix(ZZ, 2*p*U))
+    neighbor=neighbor.augment(Matrix(ZZ, n, n, 2*p^2))
+    outvecs=neighbor.transpose().echelon_form().transpose()
+    outvecs=Matrix(QQ, outvecs)[:, 0:n]
+    return L*1/(2*p)*outvecs
 
 def p_one_neighbor(L, Q, v, p): #Make work for 2!
     n=L.dimensions()[0]
@@ -197,5 +248,4 @@ def p_one_neighbor(L, Q, v, p): #Make work for 2!
     return basis
 
 def p_neighbors(L, Q, p, k):
-    """ Return all p_neighbors """
     pass

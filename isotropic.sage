@@ -42,4 +42,10 @@ def isotropic_lines(Q, p):
             return ret
         ## Test for p-divisibility
 
+def isotropic_spaces(L, Q, p, k):
+    #For now just k=1
+    if k !=1:
+        raise RuntimeError, "Not implemented"
+    else:
+        return isotropic_lines(L.transpose()*Q*L, p)
 
