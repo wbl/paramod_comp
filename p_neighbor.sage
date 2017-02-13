@@ -107,7 +107,7 @@ def hyperbolic_complement(L, Q, X, p):
     basis=Matrix(QQ, n, n, 0)
     for i in range(0, n):
         basis[i,i]=1
-    Z=Matrix(QQ, n, 0)
+    Z=Matrix(ZZ, n, 0)
     for i in range(0, k):
         #Find a z[i] complementing x[i]
         x=X.column(i)
@@ -117,7 +117,10 @@ def hyperbolic_complement(L, Q, X, p):
                 break
         #adjust so that it has the right norms
         z=(1/z.dot_product(nQ*x)%p)*z
-        z=z-(z.dot_product(nQ*z) %p)*x
+        z=z-((z.dot_product(nQ*z)/2) %p)*x
+        assert x.dot_product(nQ*x)%p == 0
+        assert z.dot_product(nQ*x) %p == 1
+        assert z.dot_product(nQ*z) %p == 0
         Z=Z.augment(colmat(z))
         #orthogonalize basis
         for j in range(0, n):
@@ -125,7 +128,7 @@ def hyperbolic_complement(L, Q, X, p):
             b=b-b.dot_product(nQ*z)*x
             b=b-b.dot_product(nQ*x)*z
             basis[:, j]=b
-    return (Z,basis)
+    return Z
 
 def hensel_lift(L, Q, X, Z, p):
     #First compute X_2
@@ -138,27 +141,40 @@ def hensel_lift(L, Q, X, Z, p):
     nQ=L.transpose()*Q*L
     X2=list()
     for i in range(0, k):
-        xi=X.columns(i)
-        v=xi-xi.dot_product(nQ*xi)*Z.columns(i)
+        xi=X.column(i)
+        v=xi-(xi.dot_product(nQ*xi)/2%p^2)*Z.column(i)
         for j in range(0, i):
-            v=v-xi.dot_product(nQ*X.columns(j))*Z.columns(j)
+            v=v-xi.dot_product(nQ*X.column(j))*Z.column(j)
         X2.append(deepcopy(v))
     Z2=list()
     for i in range(0, k):
-        zi=Z.columns(i)
-        v=zi-zi.dot_product(nQ*zi)*X.columns(i)
+        zi=Z.column(i)
+        v=zi-(zi.dot_product(nQ*zi)/2 %p^2)*X.column(i)
         for j in range(0, i):
-            v=v-zi.dot_product(nQ*Z.columns(j))*X.columns(j)
+            v=v-(zi.dot_product(nQ*Z.column(j))% p^2)*X.column(j)
         Z2.append(deepcopy(v))
     Z3=list()
     for i in range(0, k):
         v=Z2[i]
         for j in range(0, k):
-            v+=(kronecker_delta(i,j)-X2[j].dot_product(nQ*Z2[i]))*Z2[j]
+            v+=((kronecker_delta(i,j)-X2[j].dot_product(nQ*Z2[i])) %p^2)*Z2[j]
         Z3.append(deepcopy(v))
-    return (Matrix(X2).transpose(), Matrix(Z3).transpose())
+    for v in X2:
+        assert v.dot_product(nQ*v) %p^2==0
+    for v in Z2:
+        assert v.dot_product(nQ*v) %p^2==0
+    basis=Matrix(QQ, n, n, 1)
+    for j in range(0, n):
+        b=basis.column(j)
+        for i in range(0, k):
+            b=b-(b.dot_product(nQ*Z3[i]) %p^2)*X2[i]
+            b=b-(b.dot_product(nQ*X2[i]) %p^2)*Z3[i]
+            basis[:, j]=b
+    return (Matrix(X2).transpose(), Matrix(Z3).transpose(),basis)
 
 def skew_symmetric_matrices(p, k):
+    if k==1:
+        return Matrix(ZZ, 1, 1, 0)
     L=list()
     coeffs=vector(ZZ, [0 for i in range(0, k*(k-1)/2)])
     while True:
@@ -198,17 +214,18 @@ def lifts_with_fixed_complement(L, Q, Xprime, Zprime, p):
 def hermitize(L, Q, X, Z, U, p):
     # Remember we need to take X, Z*p^2, U*p and p^3*basis
     # and then divide by p
+    # p^2 basis is allowable as this is in X^#
     # Q: where does this get us the 1/p bits?
     # we also multiply by 2 for some convoluted reason
-    neighbor=Matrix(ZZ, 0, 0)
     n=L.dimensions()[1]
-    neighbor=neighbor.augment(Matrix(ZZ, 2*X))
-    neighbor=neighbor.augment(Matrix(ZZ, 2*p^2*Z))
-    neighbor=neighbor.augment(Matrix(ZZ, 2*p*U))
-    neighbor=neighbor.augment(Matrix(ZZ, n, n, 2*p^2))
+    neighbor=Matrix(ZZ, n, 0)
+    neighbor=neighbor.augment(Matrix(ZZ, X))
+    neighbor=neighbor.augment(Matrix(ZZ, p^2*Z))
+    neighbor=neighbor.augment(Matrix(ZZ, p*U))
+    neighbor=neighbor.augment(Matrix(ZZ, n, n, p^3))
     outvecs=neighbor.transpose().echelon_form().transpose()
     outvecs=Matrix(QQ, outvecs)[:, 0:n]
-    return L*1/(2*p)*outvecs
+    return L*(1/p)*outvecs
 
 def p_one_neighbor(L, Q, v, p): #Make work for 2!
     n=L.dimensions()[0]
@@ -248,10 +265,16 @@ def p_one_neighbor(L, Q, v, p): #Make work for 2!
     return basis
 
 def p_neighbors(L, Q, p, k):
-    if k!=1:
-        raise RuntimeError, "NotImpelementedError"
+    #TODO: woops
+    #We need to ensure U is orthogonal mod p^2, not just p
+    #(Actually understand proof more)
+    #Then algorithm will work
     ret=list()
-    vecs=isotropic_lines(L.transpose()*Q*L, p)
-    for v in vecs:
-        ret.append(p_one_neighbor(L, Q, v, p))
+    spaces=isotropic_spaces(L, Q, p,k)
+    for space in spaces:
+        Z=hyperbolic_complement(L, Q, space, p)
+        X,Z,U=hensel_lift(L, Q, space, Z, p)
+        for x2 in lifts_with_fixed_complement(L, Q, X, Z,p):
+            L2=hermitize(L,Q, x2, Z, U, p)
+            ret.append(L2)
     return ret

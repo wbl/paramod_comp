@@ -47,5 +47,11 @@ def isotropic_spaces(L, Q, p, k):
     if k !=1:
         raise RuntimeError, "Not implemented"
     else:
-        return isotropic_lines(L.transpose()*Q*L, p)
+        lines=isotropic_lines(L.transpose()*Q*L, p)
+        ret=list()
+        for l in lines:
+            mat=Matrix(QQ, len(l), 1)
+            mat[:, 0]=l
+            ret.append(mat)
+        return ret
 
