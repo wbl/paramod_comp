@@ -44,6 +44,7 @@ def isotropic_lines(Q, p):
 def maximal_isotropic_splitting(L, Q, p):
     #Need to return an even number of vectors
     #such that they pair up nicely into planes
+    nQ=L.transpose()*Q*L
     pass
 
 def isotropic_spaces(L, Q, p, k):
