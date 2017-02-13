@@ -41,6 +41,10 @@ def isotropic_lines(Q, p):
         if w == 0:
             return ret
         ## Test for p-divisibility
+def maximal_isotropic_splitting(L, Q, p):
+    #Need to return an even number of vectors
+    #such that they pair up nicely into planes
+    pass
 
 def isotropic_spaces(L, Q, p, k):
     #For now just k=1
