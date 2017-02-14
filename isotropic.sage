@@ -90,6 +90,7 @@ def isotropic_vector(Q, p):
 def maximal_isotropic_splitting(L, Q, p):
     #Need to return an even number of vectors
     #such that they pair up nicely into planes
+    #todo: there be bugs
     nQ=L.transpose()*Q*L
     n=Q.dimensions()[0]
     basis=Matrix(QQ, n, n, 1)
@@ -115,23 +116,100 @@ def maximal_isotropic_splitting(L, Q, p):
             b=b-(z.dot_product(nQ*b)%p)*x
             b=b-(x.dot_product(nQ*b)%p)*z
             newbase.append(b)
-        basis=column_matrix(newbase)
+        basis=Matrix(GF(p),column_matrix(newbase))
         basis=basis.transpose().rref().transpose()
         basis=basis[:, 0:n-2]
+        basis=Matrix(ZZ, basis)
         form=basis.transpose()*nQ*basis
-    return (xlist, zlist)
-    pass
+    return (xlist, zlist, Matrix(ZZ,basis).columns())
+
+def pivot_list(n,k): #always assume 1 anisotropic vector
+    if n<2*k:
+        return list()
+    if k==1:
+        return [ [x] for x in range(0, n-1)]
+    old_pivots=pivot_list(n-2, k-1)
+    old_pivots=[ [x+1 for x in piv] for piv in old_pivots]
+    pivots=[[0]+piv for piv in old_pivots]
+    back_pivots=[piv+[n-2] for piv in old_pivots]
+    pivots.extend(back_pivots)
+    if 2*k<n-1:
+        more=pivot_list(n-2, k)
+        more=[ [x+1 for x in piv] for piv in more]
+        pivots.extend(more)
+    assert len(pivots)==binomial((n-1)/2, k)*2^k
+    return pivots
+
+def veciter_help(count, p):
+    retlist=list()
+    done=False
+    vec=vector(ZZ, count)
+    while not(done):
+        retlist.append(copy(vec))
+        pointer=count-1
+        add=true
+        while add and pointer>=0:
+            vec[pointer]+=1
+            add=False
+            if vec[pointer]==p:
+                vec[pointer]=0
+                add=True
+                pointer-=1
+        if add:
+            done=True
+    return retlist
+
+def all_zeros(mat):
+    a=mat.dimensions()[0]
+    b=mat.dimensions()[1]
+    for i in range(0, a):
+        for j in range(0, b):
+            if mat[i,j]!=0:
+                return False
+    return True
 
 def isotropic_spaces(L, Q, p, k):
-    #For now just k=1
-    if k !=1:
-        raise RuntimeError, "Not implemented"
-    else:
-        lines=isotropic_lines(L.transpose()*Q*L, p)
-        ret=list()
-        for l in lines:
-            mat=Matrix(QQ, len(l), 1)
-            mat[:, 0]=l
-            ret.append(mat)
-        return ret
+    xlist, zlist, remainder=maximal_isotropic_splitting(L, Q, p)
+    zlist.reverse()
+    basis=column_matrix(xlist)
+    basis=basis.augment(column_matrix(zlist))
+    basis=basis.augment(column_matrix(remainder))
+    n=basis.dimensions()[0]
+    pivots=pivot_list(n,k)
+    retlist=list()
+    for pivot in pivots:
+        #Need to compute all spaces that work
+        #how?
+        #Never underestimate the power of brute force!
+        #First figure out how many coefficients we need
+        #For once this is a row matrix saying how much of what
+        #we need, for correspondence to Hein
+        bmat=Matrix(ZZ, k, n, 0)
+        count=0
+        for i in range(0,k):
+            #Add in the free entries on this row
+            #they are after the pivot position
+            #and not over smaller pivots
+            count +=n-(pivot[i]+1)-(k-i-1)
+        #Why yes we are iterating over (Z/p)^count
+        for vec in veciter_help(count, p):
+            pointer=0
+            for i in range(0, k):
+                for j in range(0, n):
+                    if j<pivot[i]:
+                        bmat[i, j]=0
+                    elif j==pivot[i]:
+                        bmat[i,j]=1
+                    else:
+                        if j in pivot[i+1:]:
+                            bmat[i,j]=0
+                        else:
+                            bmat[i,j]=vec[pointer]
+                            pointer+=1
+            space=basis*bmat.transpose()
+            nQ=L.transpose()*Q*L
+            gram=space.transpose()*nQ*space%p
+            if all_zeros(gram):
+                retlist.append(space)
+    return retlist
 

@@ -111,10 +111,17 @@ def hyperbolic_complement(L, Q, X, p):
     for i in range(0, k):
         #Find a z[i] complementing x[i]
         x=X.column(i)
+        found=False
         for v in basis.columns():
             if v.dot_product(nQ*X.column(i)) % p !=0:
                 z=v
+                found=True
                 break
+        if not(found):
+            print nQ
+            print x
+            print basis
+            assert False
         #adjust so that it has the right norms
         z=(1/z.dot_product(nQ*x)%p)*z
         z=z-((z.dot_product(nQ*z)/2) %p)*x
@@ -265,10 +272,6 @@ def p_one_neighbor(L, Q, v, p): #Make work for 2!
     return basis
 
 def p_neighbors(L, Q, p, k):
-    #TODO: woops
-    #We need to ensure U is orthogonal mod p^2, not just p
-    #(Actually understand proof more)
-    #Then algorithm will work
     ret=list()
     spaces=isotropic_spaces(L, Q, p,k)
     for space in spaces:
