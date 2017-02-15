@@ -15,7 +15,7 @@ class Algforms:
 
     def reconstruct(self, op, rows):
         #The reconstruction step
-        #TODO: use other things?
+        #TODO: there is a bug
         if not (1 in self.hecke_ops):
                 return Matrix(ZZ, 0, 0), False
         if not (3 in self.hecke_ops[1]):
@@ -59,6 +59,8 @@ class Algforms:
         try:
             outvec=problem.solve_right(invec)
         except:
+            return Matrix(ZZ, 0, 0), False
+        if problem.right_nullity()!=0:
             return Matrix(ZZ, 0, 0), False
         outop=Matrix(ZZ, n, n, 0)
         for i in range(0, n):
