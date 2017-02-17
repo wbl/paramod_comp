@@ -36,7 +36,7 @@ def orthogonal_basis(Q):
         for j in range(0,n):
             M[j, i]=v[j]
     return M
-    
+
 def spinor_norm(M, Q):
     # Compute the spinor norm of isometry M with norm Q
     n=Q.dimensions()[0]
@@ -78,7 +78,8 @@ def theta_equivalent(L1, L2, Q, auts=None):
     if T==False:
         return False
     # Now convert T into an isometry
-
+    #temporary for testing
+    return True
     #Note that Q*L1*T=Q*L2
     I=L1*T*L2^(-1)
     assert Q==I.transpose()*Q*I
@@ -146,12 +147,12 @@ def p_spinor_one_neighbor(L, Q, p, v):
     return spinor_op(L1, Q, p)
 
 def p_spinor_neighbors(L, Q, p, k):
-    if k!=1:
-        raise RuntimeError, "Not implemented"
-    else:
-        ret=list()
-        neighbors=p_neighbors(L, Q, p, k)
-        for L1 in neighbors:
+    ret=list()
+    neighbors=p_neighbors(L, Q, p, k)
+    for L1 in neighbors:
+        if k%2==1:
             L2=spinor_op(L1, Q, p)
             ret.append(L2)
-        return ret
+        else:
+            ret.append(L1)
+    return ret

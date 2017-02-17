@@ -100,6 +100,7 @@ class Algforms:
                 nOp, status=self.reconstruct(op, i+1)
                 if status:
                     op=nOp
+                    print "Reconstruction worked at", i,
                     break
         if valid:
             self.hecke_ops[k][p]=op

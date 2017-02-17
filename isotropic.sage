@@ -58,10 +58,17 @@ def maximal_isotropic_splitting(L, Q, p):
     zlist=list()
     for i in range(0,k):
         x=basis*isotropic_vector(form,p)
+        found = false
         for b in basis.columns():
             if x.dot_product(nQ*b) %p !=0:
+                found=true
                 z=b
                 break
+        if not(found):
+            print x
+            print basis
+            print nQ
+            print p
         z=(1/z.dot_product(nQ*x)%p)*z
         z=z-((z.dot_product(nQ*z)/2)%p)*x
         xlist.append(x)
@@ -76,7 +83,7 @@ def maximal_isotropic_splitting(L, Q, p):
             newbase.append(b)
         basis=Matrix(GF(p),column_matrix(newbase))
         basis=basis.transpose().rref().transpose()
-        basis=basis[:, 0:n-2]
+        basis=basis[:, 0:-2]
         basis=Matrix(ZZ, basis)
         form=basis.transpose()*nQ*basis
     return (xlist, zlist, Matrix(ZZ,basis).columns())

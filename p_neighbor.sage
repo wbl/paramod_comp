@@ -30,9 +30,7 @@ def hyperbolic_complement(L, Q, X, p):
     nQ=L.transpose()*Q*L
     k=X.dimensions()[1]
     n=X.dimensions()[0]
-    basis=Matrix(QQ, n, n, 0)
-    for i in range(0, n):
-        basis[i,i]=1
+    basis=Matrix(QQ, n, n, 1)
     Z=Matrix(ZZ, n, 0)
     for i in range(0, k):
         #Find a z[i] complementing x[i]
@@ -44,24 +42,37 @@ def hyperbolic_complement(L, Q, X, p):
                 found=True
                 break
         if not(found):
-            print nQ
-            print x
-            print basis
+            print "Failure to find thing in basis"
+            print basis.transpose()*nQ*x %p
             assert False
         #adjust so that it has the right norms
         z=(1/z.dot_product(nQ*x)%p)*z
+        assert z.dot_product(nQ*x) %p==1
         z=z-((z.dot_product(nQ*z)/2) %p)*x
         assert x.dot_product(nQ*x)%p == 0
         assert z.dot_product(nQ*x) %p == 1
         assert z.dot_product(nQ*z) %p == 0
         Z=Z.augment(colmat(z))
         #orthogonalize basis
-        for j in range(0, n):
+        for j in range(0,basis.dimensions()[1]):
             b=basis.column(j)
-            b=b-b.dot_product(nQ*z)*x
-            b=b-b.dot_product(nQ*x)*z
+            b=b-(b.dot_product(nQ*z)%p)*x
+            b=b-(b.dot_product(nQ*x)%p)*z
+            assert b.dot_product(nQ*z)%p==0
+            assert b.dot_product(nQ*x)%p==0
             basis[:, j]=b
-    return Z
+        for j in range(i+1, X.dimensions()[1]):
+            xj=X.column(j)
+            xj=xj-(xj.dot_product(nQ*z)%p)*x
+            X[:, j]=xj
+    check=X.transpose()*nQ*Z %p
+    for i in range(0, k):
+        for j in range(0,k):
+            if i==j:
+                assert check[i, j]==1
+            else:
+                assert check[i,j]==0
+    return X,Z
 
 def hensel_lift(L, Q, X, Z, p):
     #First compute X_2
@@ -76,15 +87,20 @@ def hensel_lift(L, Q, X, Z, p):
     for i in range(0, k):
         xi=X.column(i)
         v=xi-(xi.dot_product(nQ*xi)/2%p^2)*Z.column(i)
+        assert v.dot_product(nQ*v) %p^2==0
         for j in range(0, i):
-            v=v-xi.dot_product(nQ*X.column(j))*Z.column(j)
+            v=v-(xi.dot_product(nQ*X.column(j))%p^2)*Z.column(j)
+            assert v.dot_product(nQ*v) %p^2==0
         X2.append(deepcopy(v))
     Z2=list()
     for i in range(0, k):
         zi=Z.column(i)
+        assert zi.dot_product(nQ*zi) %p == 0
         v=zi-(zi.dot_product(nQ*zi)/2 %p^2)*X.column(i)
+        assert v.dot_product(nQ*v) %p^2==0
         for j in range(0, i):
             v=v-(zi.dot_product(nQ*Z.column(j))% p^2)*X.column(j)
+            assert v.dot_product(nQ*v) %p^2==0
         Z2.append(deepcopy(v))
     Z3=list()
     for i in range(0, k):
@@ -107,7 +123,7 @@ def hensel_lift(L, Q, X, Z, p):
 
 def skew_symmetric_matrices(p, k):
     if k==1:
-        return Matrix(ZZ, 1, 1, 0)
+        return list(Matrix(ZZ, 1, 1, 0))
     L=list()
     coeffs=vector(ZZ, [0 for i in range(0, k*(k-1)/2)])
     while True:
@@ -139,8 +155,11 @@ def lifts_with_fixed_complement(L, Q, Xprime, Zprime, p):
     k=Zprime.dimensions()[1]
     Mlist=skew_symmetric_matrices(p, k)
     Xlist=list()
+    if k==1:
+        Xlist.append(Xprime)
+        return Xlist
     for m in Mlist:
-        Xpp=Xprime+Zprime*p*Mlist
+        Xpp=Xprime+Zprime*p*m
         Xlist.append(Xpp)
     return Xlist
 
@@ -158,14 +177,14 @@ def hermitize(L, Q, X, Z, U, p):
     neighbor=neighbor.augment(Matrix(ZZ, n, n, p^3))
     outvecs=neighbor.transpose().echelon_form().transpose()
     outvecs=Matrix(QQ, outvecs)[:, 0:n]
-    return L*(1/p)*outvecs
+    return L*1/(p)*outvecs
 
 def p_neighbors(L, Q, p, k):
     ret=list()
     spaces=isotropic_spaces(L, Q, p,k)
     for space in spaces:
-        Z=hyperbolic_complement(L, Q, space, p)
-        X,Z,U=hensel_lift(L, Q, space, Z, p)
+        X,Z=hyperbolic_complement(L, Q, space, p)
+        X,Z,U=hensel_lift(L, Q, X, Z, p)
         for x2 in lifts_with_fixed_complement(L, Q, X, Z,p):
             L2=hermitize(L,Q, x2, Z, U, p)
             ret.append(L2)
