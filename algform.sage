@@ -20,6 +20,7 @@ class Algforms:
                 return Matrix(ZZ, 0, 0), False
         if not (3 in self.hecke_ops[1]):
                 return Matrix(ZZ, 0, 0), False
+        print "Attempting reconstruction"
         B=self.hecke_ops[1][3]
         n=B.dimensions()[0]
         #We solve for the symmetric matrix that commutes with B
@@ -27,7 +28,6 @@ class Algforms:
         #The input vector is size n^2. There are rn relations on rows,
         # n^2 on commutation, and n(n-1)/2 on symmetry, for
         #rn+n^2+n(n-1)/2 total relations.
-
         #We flatten matrices as m[i,j]=n*i+j
         d=rows*n+n^2+n*(n-1)/2
         problem=Matrix(ZZ, rows*n+n^2+n*(n-1)/2, n^2, 0)
@@ -39,13 +39,16 @@ class Algforms:
                 invec[counter]=op[i,j]
                 counter +=1
         assert counter==rows*n
+        outvec=problem.solve_right(invec)
         #Now the symmetry relations
-        for i in range(0, n):
-            for j in range(i+1, n):
-                problem[counter, n*i+j]=1
-                problem[counter, n*j+i]=-1
-                invec[counter]=0
-                counter +=1
+        #(should be symmetric: why not?
+        #for i in range(0, n):
+        #    for j in range(i+1, n):
+        #        problem[counter, n*i+j]=1
+        #        problem[counter, n*j+i]=-1
+        #        invec[counter]=0
+        #        counter +=1
+       
         #Now the commutation relations
         for i in range(0, n):
             for j in range(0,n):
@@ -55,12 +58,16 @@ class Algforms:
                 for k in range(0, n):
                     for l in range(0,n):
                         problem[counter+n*k+l, n*i+j]=res[k,l]
+                        pass
         #As values should be zero we are ok
         try:
             outvec=problem.solve_right(invec)
-        except:
+        except ValueError as E:
+            print E
+            print "Failed reconstruction"
             return Matrix(ZZ, 0, 0), False
         if problem.right_nullity()!=0:
+            print "Multiple reconstructions with rows", rows
             return Matrix(ZZ, 0, 0), False
         outop=Matrix(ZZ, n, n, 0)
         for i in range(0, n):
@@ -100,7 +107,7 @@ class Algforms:
                 nOp, status=self.reconstruct(op, i+1)
                 if status:
                     op=nOp
-                    print "Reconstruction worked at", i,
+                    print "Reconstruction worked at", i
                     break
         if valid:
             self.hecke_ops[k][p]=op
