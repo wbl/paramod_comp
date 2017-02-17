@@ -51,9 +51,31 @@ def spinor_norm(M, Q):
             retval*=norm(tmp, tmp, Q)
     return retval
 
+def factorhelp(rat):
+    rat=QQ(rat)
+    print rat.numerator()
+    print rat.denominator()
+    s=set(prime_factors(rat.numerator()))
+    s.symmetric_difference(set(prime_factors(rat.denominator())))
+    return s
+
+def spinor_norm_factors(M, Q):
+    n=Q.dimensions()[0]
+    transform=M
+    T=orthogonal_basis(Q)
+    retval=set()
+    for i in range(0,n):
+        vec=T.column(i)
+        tmp=transform*vec-vec
+        if norm(tmp, tmp, Q) != 0:
+            transform=transform*reflection(tmp, Q)
+            s=set(factorhelp(norm(tmp, tmp, Q)))
+            retval=retval.symmetric_difference(s)
+    return list(retval)
+
 def sqrfr_rat(num):
     num=QQ(num)
-    return squarefree_part(num.numerator()*num.denominator())
+    return num.squarefree_part()
 
 def quad_from_half_gram(M):
     return QuadraticForm(ZZ, Matrix(ZZ, 4*M))
@@ -61,9 +83,16 @@ def quad_from_half_gram(M):
 def latauts(L, Q):
     g=L.transpose()*Q*L
     q=quad_from_half_gram(g)
-    return q.automorphisms()
+    nlist=list()
+    for x in q.automorphisms():
+        Z=L*x*L^(-1)
+        if Z.det()==1:
+            nlist.append(sqrfr_rat(spinor_norm(Z, Q)))
+        else:
+            nlist.append(sqrfr_rat(spinor_norm(-1*Z, Q)))
+    return nlist
 
-def theta_equivalent(L1, L2, Q, auts=None):
+def theta_equivalent(L1, L2, Q, nlist=None):
     #Determine if L1 and L2 are theta-equivalent lattices in Q
     #L1 and L2 have columns which are the basis of the lattices
     #TODO
@@ -77,33 +106,44 @@ def theta_equivalent(L1, L2, Q, auts=None):
     T=q1.is_globally_equivalent_to(q2,return_matrix=True)
     if T==False:
         return False
+    print "Slow path"
     # Now convert T into an isometry
-    #temporary for testing
-    return True
     #Note that Q*L1*T=Q*L2
     I=L1*T*L2^(-1)
     assert Q==I.transpose()*Q*I
     if I.determinant()==-1:
         I=-1*I
-    norm=sqrfr_rat(spinor_norm(I, Q))
-    nlist=list()
-    if auts==None:
+    norm=spinor_norm(I, Q)
+    norm=QQ(norm)
+    norm=norm.numerator()*norm.denominator()
+    print "Norm determined"
+    if nlist==None:
+        nlist=list()
         auts=q1.automorphisms()
-    for y in auts:
-          assert q1(y)==q1
-          assert q1(T)==q2
-          x=T^(-1)*y*T
-          assert q2(x)==q2
-          Z=L2*x*L2^(-1)
-          assert Q==Z.transpose()*Q*Z
-          if Z.det()==1:
-              nlist.append(sqrfr_rat(spinor_norm(Z, Q)))
-          else:
-              nlist.append(sqrfr_rat(spinor_norm(-1*Z, Q)))
+        for y in auts:
+            assert q1(y)==q1
+            assert q1(T)==q2
+            x=T^(-1)*y*T
+            assert q2(x)==q2
+            Z=L2*x*L2^(-1)
+            assert Q==Z.transpose()*Q*Z
+            assert sqrfr_rat(spinor_norm(Z, Q))==sqrfr_rat(spinor_norm(I*Z*I^(-1), Q))
+            if Z.det()==1:
+                nlist.append(sqrfr_rat(spinor_norm(Z, Q)))
+            else:
+                nlist.append(sqrfr_rat(spinor_norm(-1*Z, Q)))
     #Now determine if norm is 1 when we tweak with elements of nlist
-    tot=prod(nlist)
+    print "Linear algebra"
+    fac_tot=reduce(lambda a, b: a.union(b), [set(prime_factors(x)) for x in nlist])
+    fac_tot=list(fac_tot)
+    dnorm=norm
+    for x in fac_tot:
+        while dnorm%x==0:
+            dnorm=dnorm/x
+    if dnorm.is_square()==False:
+        return False
+    norm=norm/dnorm
     fac_norm=prime_factors(norm)
-    fac_tot=prime_factors(tot)
     for x in fac_norm:
         if x not in fac_tot:
             return False
@@ -113,7 +153,7 @@ def theta_equivalent(L1, L2, Q, auts=None):
     operator=matrix(GF(2),nprimes, nops)
     vec=vector(GF(2), nprimes)
     for i in range(0, nprimes):
-        if norm %fac_tot[i] == 0:
+        if fac_tot[i] in fac_norm:
             vec[i]=1
             for j in range(0, nops):
                 if nlist[j]%fac_tot[i]==0:

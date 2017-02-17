@@ -58,7 +58,6 @@ class Algforms:
                 for k in range(0, n):
                     for l in range(0,n):
                         problem[counter+n*k+l, n*i+j]=res[k,l]
-                        pass
         #As values should be zero we are ok
         try:
             outvec=problem.solve_right(invec)
@@ -89,6 +88,7 @@ class Algforms:
             for target in targets:
                 found = False
                 for j in range(0, len(self.latlist)):
+                    print "Comparing ", i, " ", j
                     if theta_equivalent(self.latlist[j], target, self.Q, self.autlist[j]):
                         op[i,j]+=1
                         found = True
