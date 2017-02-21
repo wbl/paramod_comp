@@ -7,50 +7,6 @@
 
 #when done, optimize for much better performance
 
-def reflection(v, Q):
-    # Determine a matrix nxn for reflection by v with norm Q
-    # Q will be the matrix v*Q*v is the form: so half-entries off diagonal
-    n=Q.dimensions()[0]
-    M=Matrix(QQ, n, n)
-    norm=v.dot_product(Q*v)
-    for i in range(0, n):
-        q=vector(QQ, n)
-        q[i]=1
-        w=q-2*(q.dot_product(Q*v)/norm)*v
-        M[:, i]=w
-    return M
-
-def norm(u,v,Q):
-    return u.dot_product(Q*v)
-
-def orthogonal_basis(Q):
-    #ret.tranpose()*Q*ret is diagonal
-    n=Q.dimensions()[0]
-    M=Matrix(QQ, n, n)
-    for i in range(0, n):
-        M[i,i]=1
-    for i in range(0, n):
-        v=M.column(i)
-        for j in range(0, i):
-            v=v-norm(M.column(j), v, Q)*M.column(j)/norm(M.column(j), M.column(j), Q)
-        for j in range(0,n):
-            M[j, i]=v[j]
-    return M
-
-def spinor_norm(M, Q):
-    # Compute the spinor norm of isometry M with norm Q
-    n=Q.dimensions()[0]
-    transform=M
-    T=orthogonal_basis(Q)
-    retval=1
-    for i in range(0,n):
-        vec=T.column(i)
-        tmp=transform*vec-vec
-        if tmp.dot_product(Q*tmp)!=0:
-            transform=transform*reflection(tmp, Q)
-            retval*=tmp.dot_product(Q*tmp)
-    return retval
-
 def sqrfr_rat(num):
     num=QQ(num)
     return num.squarefree_part()
