@@ -9,6 +9,10 @@ class Algforms:
         self.autlist.append(latauts(L, Q))
         self.Q=Q
         self.hecke_ops=dict()
+        det=(L.transpose()*Q*L).determinant()
+        det=QQ(det)
+        #Incorrect but we should fix somehow
+        self.determinant=det.numerator()*det.denominator()
         n=Q.dimensions()[1]
         for i in range(1, floor(n/2)+1):
             self.hecke_ops[i]=dict()
@@ -74,12 +78,15 @@ class Algforms:
                 outop[i,j]=outvec[n*i+j]
         return outop, True
     
-    def hecke_operator(self,p, k, fast=True): #include more sanity checks
+    def hecke_operator(self,p, k, fast=True, force=False): #include more sanity checks
         #TODO: better way to report expansion?
         #Maybe compute hecke(3, 1) at init time?
+        if self.determinant %p==0:
+            return
         if k in self.hecke_ops:
             if p in self.hecke_ops[k]:
-                return self.hecke_ops[k][p]
+                if not force:
+                    return self.hecke_ops[k][p]
         valid=True
         op=Matrix(ZZ, len(self.latlist), len(self.latlist))
         for i in range(0, len(self.latlist)):
@@ -88,7 +95,6 @@ class Algforms:
             for target in targets:
                 found = False
                 for j in range(0, len(self.latlist)):
-                    print "Comparing ", i, " ", j
                     if theta_equivalent(self.latlist[j], target, self.Q, self.autlist[j]):
                         op[i,j]+=1
                         found = True
@@ -107,7 +113,7 @@ class Algforms:
                 nOp, status=self.reconstruct(op, i+1)
                 if status:
                     op=nOp
-                    print "Reconstruction worked at", i
+                    print "Reconstruction worked at", i+1
                     break
         if valid:
             self.hecke_ops[k][p]=op

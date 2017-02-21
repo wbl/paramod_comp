@@ -12,12 +12,12 @@ def reflection(v, Q):
     # Q will be the matrix v*Q*v is the form: so half-entries off diagonal
     n=Q.dimensions()[0]
     M=Matrix(QQ, n, n)
+    norm=v.dot_product(Q*v)
     for i in range(0, n):
         q=vector(QQ, n)
         q[i]=1
-        w=q-2*(q.dot_product(Q*v)/(v.dot_product(Q*v)))*v
-        for j in range(0, n):
-            M[j, i]=w[j]
+        w=q-2*(q.dot_product(Q*v)/norm)*v
+        M[:, i]=w
     return M
 
 def norm(u,v,Q):
@@ -46,32 +46,10 @@ def spinor_norm(M, Q):
     for i in range(0,n):
         vec=T.column(i)
         tmp=transform*vec-vec
-        if norm(tmp, tmp, Q) != 0:
+        if tmp.dot_product(Q*tmp)!=0:
             transform=transform*reflection(tmp, Q)
-            retval*=norm(tmp, tmp, Q)
+            retval*=tmp.dot_product(Q*tmp)
     return retval
-
-def factorhelp(rat):
-    rat=QQ(rat)
-    print rat.numerator()
-    print rat.denominator()
-    s=set(prime_factors(rat.numerator()))
-    s.symmetric_difference(set(prime_factors(rat.denominator())))
-    return s
-
-def spinor_norm_factors(M, Q):
-    n=Q.dimensions()[0]
-    transform=M
-    T=orthogonal_basis(Q)
-    retval=set()
-    for i in range(0,n):
-        vec=T.column(i)
-        tmp=transform*vec-vec
-        if norm(tmp, tmp, Q) != 0:
-            transform=transform*reflection(tmp, Q)
-            s=set(factorhelp(norm(tmp, tmp, Q)))
-            retval=retval.symmetric_difference(s)
-    return list(retval)
 
 def sqrfr_rat(num):
     num=QQ(num)
@@ -106,7 +84,6 @@ def theta_equivalent(L1, L2, Q, nlist=None):
     T=q1.is_globally_equivalent_to(q2,return_matrix=True)
     if T==False:
         return False
-    print "Slow path"
     # Now convert T into an isometry
     #Note that Q*L1*T=Q*L2
     I=L1*T*L2^(-1)
@@ -116,7 +93,6 @@ def theta_equivalent(L1, L2, Q, nlist=None):
     norm=spinor_norm(I, Q)
     norm=QQ(norm)
     norm=norm.numerator()*norm.denominator()
-    print "Norm determined"
     if nlist==None:
         nlist=list()
         auts=q1.automorphisms()
@@ -133,7 +109,6 @@ def theta_equivalent(L1, L2, Q, nlist=None):
             else:
                 nlist.append(sqrfr_rat(spinor_norm(-1*Z, Q)))
     #Now determine if norm is 1 when we tweak with elements of nlist
-    print "Linear algebra"
     fac_tot=reduce(lambda a, b: a.union(b), [set(prime_factors(x)) for x in nlist])
     fac_tot=list(fac_tot)
     dnorm=norm
