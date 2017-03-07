@@ -1,3 +1,5 @@
+from sage.rings.integer import Integer
+
 ## port of spinor_norm.m
 ## We require pairs (M, Q) with Q a quadratic form and M a basis
 ## Q is represented so v*Q*v is the form. Not 2* it, the form
@@ -6,7 +8,6 @@
 #easier
 
 #when done, optimize for much better performance
-
 def sqrfr_rat(num):
     num=QQ(num)
     return num.squarefree_part()

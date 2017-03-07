@@ -6,16 +6,18 @@ from sage.rings.rational_field import QQ
 def reflection(v, Q):
     # Determine a matrix nxn for reflection by v with norm Q
     # Q will be the matrix v*Q*v is the form: so half-entries off diagonal
+
+    #Is this correct? there were attempts that were not
     cdef int n, i
     n=Q.dimensions()[0]
-    M=Matrix(QQ, n, n)
+    I=Matrix(QQ, n, n, 1)
     norm=v.dot_product(Q*v)
-    for i in range(0, n):
-        q=vector(QQ, n)
-        q[i]=1
-        w=q-2*(q.dot_product(Q*v)/norm)*v
-        M[:, i]=w
-    return M
+    vt=Q*v
+    Vt=Matrix(QQ, 1, n)
+    V=Matrix(QQ, n, 1)
+    V[:,0]=v
+    Vt[0,:]=vt
+    return I-2*V*Vt*1/norm
 
 def norm(u,v,Q):
     return u.dot_product(Q*v)
@@ -47,6 +49,12 @@ def spinor_norm(M, Q):
         tmp=transform*vec-vec
         s=tmp.dot_product(Q*tmp)
         if s!=0:
-            transform=transform*reflection(tmp, Q)
+            v=tmp
+            vt=Q*v
+            Vt=Matrix(QQ, 1, n)
+            V=Matrix(QQ, n, 1)
+            V[:,0]=v
+            Vt[0,:]=vt
+            transform=transform-2*(transform*V)*Vt*1/s
             retval*=s
     return retval
