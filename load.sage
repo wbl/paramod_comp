@@ -1,0 +1,6 @@
+load("spinor_norm_internals.spyx")
+load("spinor_norm.sage")
+load("isotropic.sage")
+load("p_neighbor.sage")
+load("p_neighbor_internals.spyx")
+load("algform.sage")

@@ -27,20 +27,28 @@ def latauts(L, Q):
             nlist.append(sqrfr_rat(spinor_norm(-1*Z, Q)))
     return nlist
 
-def theta_equivalent(L1, L2, Q, nlist=None):
+def squarefree_prime_factors(x):
+    factorization=factor(x)
+    retval=list()
+    for f in factorization:
+        if f[1]%2==1:
+            retval.append(f)
+    return retval
+
+def theta_equivalent(L1, L2, Q, nlist=None, theta_refine=True, g1=None, g2=None):
     #Determine if L1 and L2 are theta-equivalent lattices in Q
     #L1 and L2 have columns which are the basis of the lattices
     #TODO
-    g1=L1.transpose()*Q*L1
-    g2=L2.transpose()*Q*L2
+    if g1 == None and not theta_refine:
+        g1=Matrix(ZZ, 2*L1.transpose()*Q*L1)
+    if g2 == None and not theta_refine:
+        g2=Matrix(ZZ, 2*L2.transpose()*Q*L2)
     # Now we need to make these into quadratic forms 
-    q1=quad_from_half_gram(g1)
-    q2=quad_from_half_gram(g2)
-    assert q1.Gram_matrix()==2*g1
-    assert q2.Gram_matrix()==2*g2
-    T=q1.is_globally_equivalent_to(q2,return_matrix=True)
+    T=g1.__pari__().qfisom(g2.__pari__())
     if T==False:
         return False
+    if not theta_refine:
+        return True
     # Now convert T into an isometry
     #Note that Q*L1*T=Q*L2
     I=L1*T*L2^(-1)
@@ -59,8 +67,12 @@ def theta_equivalent(L1, L2, Q, nlist=None):
             x=T^(-1)*y*T
             assert q2(x)==q2
             Z=L2*x*L2^(-1)
+            Y=L1*y*L1^(-1)
             assert Q==Z.transpose()*Q*Z
-            assert sqrfr_rat(spinor_norm(Z, Q))==sqrfr_rat(spinor_norm(I*Z*I^(-1), Q))
+            assert Q==Y.transpose()*Q*Y
+            test=QQ(spinor_norm(Z,Q)/spinor_norm(Y,Q))
+            test=test.numerator()*test.denominator()
+            assert is_square(test)
             if Z.det()==1:
                 nlist.append(sqrfr_rat(spinor_norm(Z, Q)))
             else:
@@ -75,7 +87,7 @@ def theta_equivalent(L1, L2, Q, nlist=None):
     if dnorm.is_square()==False:
         return False
     norm=norm/dnorm
-    fac_norm=prime_factors(norm)
+    fac_norm=squarefree_prime_factors(norm)
     for x in fac_norm:
         if x not in fac_tot:
             return False
@@ -102,7 +114,9 @@ def quad_from_half_gram_rat(M):
 def vec_w_norm(Q, n):
     mat=Q.block_sum(Matrix(QQ, 1, 1, [-n]))
     sol=quad_from_half_gram_rat(mat).solve()
-    return vector(QQ, sol[0:-1])/sol[-1]
+    vec=vector(QQ, sol[0:-1])/sol[-1]
+    assert vec.dot_product(Q*vec)==n
+    return vec
 
 # What exactly do we need to do in the spinor op?
 # What about 2?

@@ -192,6 +192,7 @@ def form_with_local_data(prime, expdimcliff):
 #The algorithm requires "classically integral forms". And then primitivity
 #enters the picture. This is what magma has?
 
+#Try to understand exactly what I need.
 def form_vec_reshape(form, vector):
     #extend vector to a basis, and carry out the variable substitution so
     #that the returned form has $f(1,0,0\ldots)=form(vector)
@@ -474,7 +475,7 @@ def p_adic_canonical(M, p, accuracy):
     #first we exactly take jordan blocks
     #then we approximately normalize each individual block
     #in the case of 2 we have a lot more to do.
-    R=Qp(p, prec=accuracy, type='capped-rel')
+    R=Qp(p, prec=accuracy, type='capped-rel') #is this the right kind?
     M=Matrix(R, M)
     Mold=M
     if p!=2:

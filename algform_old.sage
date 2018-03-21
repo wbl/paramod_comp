@@ -28,69 +28,6 @@ class Algforms:
         else:
             self.restore(s)
 
-    def reconstruct(self, op, rowlist, bound):
-        #The reconstruction step
-        #TODO: accept noncontiguous list of rows, determine which will work
-        # best ala Hein
-        # Requires diagonalization?
-        if not (1 in self.hecke_ops):
-                return Matrix(ZZ, 0, 0), False
-        if not (3 in self.hecke_ops[1]):
-                return Matrix(ZZ, 0, 0), False
-        print "Attempting reconstruction"
-        # We'd like to throw in all constraints
-        B=self.hecke_ops[1][3]
-        n=B.dimensions()[0]
-        #We solve for the symmetric matrix that commutes with B
-        #and has the first r rows given by op[:, rows]
-        #The input vector is size n^2. There are rn relations on rows,
-        # n^2 on commutation, and n(n-1)/2 on symmetry, for
-        #rn+n^2+n(n-1)/2 total relations.
-        #We flatten matrices as m[i,j]=n*i+j
-        d=len(rowlist)*n+n^2+n*(n-1)/2
-        problem=Matrix(ZZ, len(rowlist)*n+n^2+n*(n-1)/2, n^2, 0)
-        invec=vector(ZZ, ZZ(d))
-        counter=0
-        for i in range(0, len(rowlist)):
-            for j in range(0, n):
-                problem[counter,n*rowlist[i]+j]=1
-                invec[counter]=op[rowlist[i],j]
-                counter +=1
-        assert counter==len(rowlist)*n
-        for i in range(0, n):
-            for j in range(0,n):
-                mat=Matrix(ZZ, n, n, 0)
-                mat[i, j]=1
-                res=B*mat-mat*B
-                for k in range(0, n):
-                    for l in range(0,n):
-                        problem[counter+n*k+l, n*i+j]=res[k,l]
-        ourmax = 0
-        for i in range(0, d):
-            for j in range(0, n^2):
-                if abs(problem[i,j])> ourmax:
-                    ourmax = problem[i,j]
-        limit = ourmax*bound*n^2+1
-        mod = Primes().next(limit)
-        print "Problem assembled with modulus %s and dimensions %s x %s"%( mod, d, n^2)
-        modinvec = vector(GF(mod), invec)
-        modproblem = Matrix(GF(mod), problem)
-        #Can I accelerate this by removing redundancy
-        try:
-            outvec=modproblem.solve_right(modinvec)
-            print "Found a solution"
-        except ValueError as E:
-            print "Failed reconstruction"
-            return Matrix(ZZ, 0, 0), False
-        if modproblem.right_nullity()!=0:
-            print "Multiple reconstructions with rows", rowlist
-            return Matrix(ZZ, 0, 0), False
-        outop=Matrix(ZZ, n, n, 0)
-        for i in range(0, n):
-            for j in range(0,n):
-                outop[i,j]=outvec[n*i+j].lift()
-        return outop, True
-
     def initialize(self):
         done = False
         workqueue = list()
@@ -121,7 +58,7 @@ class Algforms:
         op=Matrix(ZZ, len(self.latlist), len(self.latlist))
         rowlist = list()
         for i in range(0, len(self.latlist)): #Replicate hein's logic here
-            targrow = self.targrow_compute(i, rowlist, p)
+            targrow = i
             print "Using row ", targrow
             rowlist.append(targrow)
             curlat=self.latlist[targrow]
@@ -129,7 +66,6 @@ class Algforms:
                 targets=p_neighbors(curlat, self.Q, p, k)
             else:
                 targets=p_spinor_neighbors(curlat, self.Q, p, k)
-            bound = 0
             for target in targets:
                 tmat = Matrix(ZZ, 2*target.transpose()*self.Q*target)
                 tmat = quadmatred(tmat)
@@ -155,13 +91,6 @@ class Algforms:
                     # Need better way to handle this issue
                     print "Need to expand list. Recompute all operators"
                     valid=False
-                bound += 1
-            if valid and fast:
-                nOp, status=self.reconstruct(op, rowlist, bound)
-                if status:
-                    op=nOp
-                    print "Reconstruction worked at", i+1
-                    break
         if valid:
             self.hecke_ops[k][p]=op
             return op
@@ -198,31 +127,7 @@ class Algforms:
 
     def has_operator(self, p, k):
         return p in self.hecke_ops[k]
-
-    def targrow_compute(self, index, rowlist, p):
-        #Todo: memoize value
-        bound = len(self.latlist)
-        target = index
-        if self.has_operator(3, 1):
-            op = Matrix(RDF,self.hecke_ops[1][3])
-            _,eigvecs =  op.right_eigenmatrix()
-            for i in range(0, eigvecs.dimensions()[0]):
-                possible = True
-                for j in range(0, eigvecs.dimensions()[1]):
-                    for k in range(j+1, eigvecs.dimensions()[1]):
-                        if eigvecs[i, j] == eigvecs[i,k]:
-                            possible = False
-                if possible:
-                    target = i
-                    break
-        else:
-            target = index
-        if target in rowlist:
-            for i in range(0, bound):
-                if i not in rowlist:
-                    target = i
-                    break
-        return target
+    
 
 class Eigenform:
     #Q: how to divide into Galois orbits?
@@ -300,11 +205,8 @@ class Eigenform:
 
     def Yoshida_lift_factors(self):
         pass
-    
+
 def simul_diag(ops):
-    #TODO: make this work faster somehow
-    # Stein indicates this might infinite loop: might need to go beyond the ring
-    # Let's imitate his algorithm
     nops=len(ops)
     for i in range(0, nops):
         for j in range(i, nops):
@@ -325,5 +227,4 @@ def simul_diag(ops):
             return basis.columns()
     print "Need more operators"
     return basis
-
 
