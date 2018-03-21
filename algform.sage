@@ -230,9 +230,8 @@ class Eigenform:
     # let's look at root magnitudes?
     def __init__(self, space, vec, F=None):
         self.space=space
-        F, newvec,_ = sage.rings.qqbar.number_field_elements_from_algebraics(vec)
-        self.vec=vector(F, newvec)
-        self.F = F
+        self.vec=vec
+        self.F = vec.base_ring()
 
     def is_good(self, p):
         return not p.divides(self.space.determinant)
@@ -241,7 +240,7 @@ class Eigenform:
         op=self.space.hecke_operator(p, k)
         for i in range(0, len(self.vec)):
             if self.vec[i] !=0:
-                return (op*self.vec)[i]/self.vec[i]
+                return (self.vec*op)[i]/self.vec[i]
 
     def coeff_field(self):
         return self.F
@@ -300,30 +299,64 @@ class Eigenform:
 
     def Yoshida_lift_factors(self):
         pass
-    
+
+def decompose(ops):
+    irreducibles = list()
+    spaces = list()
+    n = ops[0].dimensions()[0]
+    spaces.append(Matrix(QQ, n, n, 1).column_space())
+    while len(spaces)>0:
+        space = spaces.pop()
+        decomp, done = split_or_irrep(space, ops)
+        if done:
+            irreducibles.append(decomp)
+        else:
+            spaces += decomp
+    return irreducibles
+
+def random_element(ops):
+    n = ops[0].dimensions()[0]
+    M=Matrix(QQ, n, n, 0)
+    for op in ops:
+        M += choice([-2,-1,0,1,2])*op
+    return M
+
+def split_or_irrep(V, ops):
+    while 1:
+        M = random_element(ops)
+        M = M.restrict(V)
+        potsplits = M.fcp()
+        if len(potsplits)==1 and potsplits[0][1] == 1:
+            return V, True
+        else:
+            result = list()
+            for split in potsplits:
+                poly = split[0]
+                W = poly(M).left_kernel()
+                if W.dimension() != 0 and W.dimension() != V.dimension():
+                    result.append(W)
+            if len(result) > 0:
+                return result, False
+
+def eigenvec(space, ops):
+    M = Matrix(QQ, 1, 1, 0)
+    while 1:
+        M = random_element(ops)
+        M = M.restrict(space)
+        facts = M.fcp()
+        if len(facts)==1 and facts[0][1] == 1:
+            break
+    print "Computing eigenvector on a space of dimension ", space.dimension()
+    return Matrix(space.basis()).transpose()*Matrix(M.left_eigenspaces(format='galois')[0][1].basis()).transpose().columns()[0]
+
 def simul_diag(ops):
-    #TODO: make this work faster somehow
-    # Stein indicates this might infinite loop: might need to go beyond the ring
-    # Let's imitate his algorithm
-    nops=len(ops)
+    nops = len(ops)
     for i in range(0, nops):
         for j in range(i, nops):
-            if ops[i]*ops[j]-ops[j]*ops[i] !=0:
-                raise RuntimeError, "Noncommuting operators"
-    n=ops[0].dimensions()[0]
-    basis=Matrix(QQ, n, n,1)
-    for op in ops:
-        nop=basis^(-1)*op*basis
-        D,P=nop.right_eigenmatrix()
-        basis=P*basis
-        done=True
-        for i in range(0,n):
-            for j in range(i+1, n):
-                if D[i]==D[j]:
-                    done=False
-        if done:
-            return basis.columns()
-    print "Need more operators"
-    return basis
-
-
+            if ops[i]*ops[j] !=ops[j]*ops[i]:
+                assert "Noncommuting operators"
+    vecs = list()
+    irreps = decompose(ops)
+    for irr in irreps:
+       vecs.append(eigenvec(irr, ops))
+    return vecs
