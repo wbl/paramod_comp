@@ -17,8 +17,8 @@ def jsonize_space(A):
     array = [ jsonize_eig(eig) for eig in eigs]
     datadict = dict()
     datadict['eigenforms'] = array
-    datadict['dimension'] = len(eigs)
-    return json.dumps(datadict, indent=4, sort_keys=True, separators ={': ', ', '})
+    datadict['dimension'] = A.dimension()
+    return json.dumps(datadict, indent=4, sort_keys=True, separators ={',', ':'})
 
 def jsonize_eig(eig):
     field = eig.coeff_field()

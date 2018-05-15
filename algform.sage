@@ -1,6 +1,7 @@
 import pickle
 import pdb
-
+import sage.libs.pari
+from sage.libs.pari.convert_sage import gen_to_sage
 def quadmatred(M):
     u = M.LLL_gram()
     return u.transpose()*M*u
@@ -29,6 +30,7 @@ class Algforms:
             self.restore(s)
 
     def reconstruct(self, op, rowlist, bound):
+        # Asymptotically slower! we shouldn't use this for large dimensional spaces
         #The reconstruction step
         #TODO: accept noncontiguous list of rows, determine which will work
         # best ala Hein
@@ -76,19 +78,26 @@ class Algforms:
         modinvec = vector(GF(mod), invec)
         modproblem = Matrix(GF(mod), problem)
         #Can I accelerate this by removing redundancy
+        #Can pari do this?
+        pariprob = pari(problem)
+        parimod = pari(modproblem)
+        if parimod.matrank() != n^2:
+            print "Multiple reconstructions with rows", rowlist
+            return Matrix(ZZ, 0, 0), False
+        print "Nullity computed"
         try:
-            outvec=modproblem.solve_right(modinvec)
+#            outvec= gen_to_sage(pariprob.matsolvemod(mod, pari(invec).Col())) #Is this any faster?
+            outvec = modproblem.solve_right(modinvec).lift()
             print "Found a solution"
         except ValueError as E:
             print "Failed reconstruction"
             return Matrix(ZZ, 0, 0), False
-        if modproblem.right_nullity()!=0:
-            print "Multiple reconstructions with rows", rowlist
-            return Matrix(ZZ, 0, 0), False
+        #insert outvec type check
+        print outvec
         outop=Matrix(ZZ, n, n, 0)
         for i in range(0, n):
             for j in range(0,n):
-                outop[i,j]=outvec[n*i+j].lift()
+                outop[i,j]=outvec[n*i+j]
         return outop, True
 
     def initialize(self):
@@ -166,7 +175,20 @@ class Algforms:
             self.hecke_ops[k][p]=op
             return op
         return False
-    
+
+    def compute_row(self, p,k, row):
+        dim = len(self.latlist)
+        ret = vector(ZZ, dim)
+        targets = p_neighbors(self.latlist[row], self.Q, p, k)
+        for target in targets:
+            tmat = Matrix(ZZ, 2*target.transpose()*self.Q*target)
+            tmat = quadmatred(tmat)
+            for i in range(0, dim):
+                if theta_equivalent(self.latlist[i], target, self.Q, theta_refine=self.theta, g2=tmat, g1=self.glist[i]):
+                    ret[i]+=1
+                    break
+        return ret
+        
     def save(self):
         return pickle.dumps(self)
 
@@ -223,6 +245,9 @@ class Algforms:
                     target = i
                     break
         return target
+
+    def dimension(self):
+        return(len(self.latlist))
 
 class Eigenform:
     #Q: how to divide into Galois orbits?
