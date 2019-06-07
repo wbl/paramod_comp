@@ -1,0 +1,3 @@
+What if we precompute the rows we need and much of the solving that needs to happen?
+Not really worth it. Prime changes.
+Linear algebra should be fast. Try to make it so
