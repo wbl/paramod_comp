@@ -161,6 +161,34 @@ prime.
 #######################################
 #######################################
 
+
+def qf_find_primitive_zeros_mod_p_general(Q, p):
+
+  """
+  Given a quinary regular quadratic form over ZZ, and an odd prime p,
+  returns the primitive zeros mod p of Q.
+  """
+  w = vector((1, 0, 0, 0, 0))
+  if Q(w)%p == 0:
+    yield w
+  for a in range(p):
+    w = vector((a, 1, 0, 0, 0))
+    if Q(w)%p == 0:
+      yield w
+    for b in range(p):
+      w = vector((a, b, 1, 0, 0))
+      if Q(w)%p == 0:
+        yield w
+      for c in range(p):
+        w = vector((a, b, c, 1, 0))
+        if Q(w)%p == 0:
+          yield w
+        for d in range(p):
+          w = vector((a, b, c, d, 1))
+          if Q(w)%p == 0:
+            yield w
+
+
 def qf_find_primitive_zeros_mod_p_regular(Q, p):
 
   """
@@ -193,16 +221,68 @@ def qf_find_primitive_zeros_mod_p_nonsingular(Q, p):
     for v in qf_find_primitive_zeros_mod_p_regular(Q, p):
       yield v
   elif Q.disc()%p != 0 and p == 2:
-    v = Q.find_primitive_p_divisible_vector__next(p)
-    while v != None:
+    for v in qf_find_primitive_zeros_mod_p_general(Q, p):
       yield v
-      v = Q.find_primitive_p_divisible_vector__next(p, v)
   else:
-    v = Q.find_primitive_p_divisible_vector__next(p)
-    while v != None:
+    for v in qf_find_primitive_zeros_mod_p_general(Q, p):
       if Q.is_zero_nonsingular(v, p):
         yield v
-      v = Q.find_primitive_p_divisible_vector__next(p, v)
+
+
+def qf_find_p_neighbor_from_vec(Q, p, v, return_matrix = False):
+
+  """
+  Given a quinary quadratic form over ZZ, a prime p, and a vector
+  v such that Q(v) = 0 (mod p^2), and v != 0 mod p, returns the
+  p-neighbor associated to v.
+  Copied from the qf package of sage, but with bugs fixed.
+  """
+
+  R = Q.base_ring()
+  n = Q.dim()
+  B2 = Q.matrix()
+
+  ## Find a (dual) vector w with B(v,w) != 0 (mod p)
+  v_dual = B2 * vector(v)     ## We want the dot product with this to not be divisible by 2*p.
+  y_ind = 0
+  while ((y_ind < n) and (v_dual[y_ind] % p) == 0):   ## Check the dot product for the std basis vectors!
+      y_ind += 1
+  if y_ind == n:
+      raise RuntimeError("Oops!  One of the standard basis vectors should have worked.")
+  w = vector([R(i == y_ind)  for i in range(n)])
+  vw_prod = (v * Q.matrix()).dot_product(w)
+  s = Q(v)
+  if (s % p**2 != 0):
+      al = (-s / (p * vw_prod)) % p
+      v1 = v + p * al * w
+      v1w_prod = (v1 * Q.matrix()).dot_product(w)
+  else:
+      v1 = v
+      v1w_prod = vw_prod
+  
+  good_basis = extend_to_primitive([v1, w])
+  for i in range(2,n):
+      ith_prod = (good_basis[i] * Q.matrix()).dot_product(v)
+      c = (ith_prod / v1w_prod) % p
+      good_basis[i] = good_basis[i] - c * w  ## Ensures that this extension has <v_i, v> = 0 (mod p)
+  ## Perform the p-neighbor switch
+  good_basis[0]  = vector([x/p  for x in good_basis[0]])    ## Divide v1 by p
+  good_basis[1]  = good_basis[1] * p                          ## Multiply w by p
+  ## Return the associated quadratic form
+  M = matrix(good_basis)
+  new_Q = deepcopy(Q)                        ## Note: This avoids a circular import of QuadraticForm!
+  if hasattr(new_Q, '__theta_vec'):
+      delattr(new_Q, '__theta_vec')
+  if hasattr(new_Q, '__automorphisms_pari'):
+      delattr(new_Q, '__automorphisms_pari')
+  if hasattr(new_Q, '__number_of_automorphisms'):
+      delattr(new_Q, '__number_of_automorphisms')
+  new_Q.__init__(R, M * Q.matrix() * M.transpose())
+  if return_matrix:
+      return new_Q, M.transpose()
+  else:
+      return new_Q
+  return QuadraticForm(R, M * Q.matrix() * M.transpose())
 
 def qf_find_p_neighbors(Q, p, return_matrix = False):
 
@@ -213,11 +293,11 @@ def qf_find_p_neighbors(Q, p, return_matrix = False):
 
   for v in qf_find_primitive_zeros_mod_p_nonsingular(Q, p):
     if return_matrix:
-      Q1, M1 = Q.find_p_neighbor_from_vec(p, v, return_matrix = return_matrix)
+      Q1, M1 = qf_find_p_neighbor_from_vec(Q, p, v, return_matrix = return_matrix)
       Q2, M2 = qf_reduction_pari(Q1, return_matrix = 1)
       yield Q2, M1*M2
     else:
-      Q1 = Q.find_p_neighbor_from_vec(p, v, return_matrix = return_matrix)
+      Q1 = qf_find_p_neighbor_from_vec(Q, p, v, return_matrix = return_matrix)
       yield qf_reduction_pari(Q1)
 
 def qf_find_genus(Q, p):
