@@ -831,7 +831,7 @@ class quinary_module():
           not_amb = self._not_ambiguous[d]
       else:
           amb = []
-          not_amb = range(ncols)
+          not_amb = list(range(ncols))
           for i in self._iso_dict:
               R = self._iso_dict[i]
               for A in R.automorphisms():
@@ -921,7 +921,7 @@ class quinary_module():
           not_amb = self._not_ambiguous[d]
       else:
           amb = []
-          not_amb = range(ncols)
+          not_amb = list(range(ncols))
           for i in self._iso_dict:
               R = self._iso_dict[i]
               for A in R.automorphisms():
