@@ -1047,7 +1047,7 @@ class quinary_module():
     """
 
     if p in self._eigen_tp2:
-      if l in self._eigen_tp2[p]:
+      if d in self._eigen_tp2[p]:
         if v in self._eigen_tp2[p][d]:
           return self._eigen_tp2[p][d][v]
     g = len(v)
